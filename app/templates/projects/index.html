@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Projects · Quill{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="eyebrow">Workspace</p>
+    <h1>Projects</h1>
+  </div>
+  <button type="button" class="btn btn-primary" data-toggle="newProject">New project</button>
+</div>
+
+<div id="newProject" class="card hidden">
+  <div class="card-header">
+    <h2>Create a project</h2>
+    <button type="button" class="link-button" data-toggle="newProject">Close</button>
+  </div>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="field">
+      <label for="name">Name</label>
+      {{ form.name(id="name", required=True, placeholder="Q4 Launch, redesign, onboarding…") }}
+      {% for e in form.name.errors %}<p class="error">{{ e }}</p>{% endfor %}
+    </div>
+    <div class="field">
+      <label for="description">Description</label>
+      {{ form.description(id="description", rows=3, placeholder="Optional. What's this project about?") }}
+      {% for e in form.description.errors %}<p class="error">{{ e }}</p>{% endfor %}
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-ghost" data-toggle="newProject">Cancel</button>
+      <button type="submit" class="btn btn-primary">Create project</button>
+    </div>
+  </form>
+</div>
+
+{% if projects %}
+  <div class="project-grid">
+    {% for p in projects %}
+      <article class="project-card">
+        <div class="project-card-head">
+          <a href="{{ url_for('projects.detail', project_id=p.id) }}" class="project-name">{{ p.name }}</a>
+          {% if project_role[p.id] == "ADMIN" %}
+            <form method="post" action="{{ url_for('projects.delete', project_id=p.id) }}" class="inline" onsubmit="return confirm('Delete this project? All its tasks will be removed.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="link-button danger" title="Delete project">Delete</button>
+            </form>
+          {% endif %}
+        </div>
+        {% if p.description %}<p class="project-desc">{{ p.description }}</p>{% endif %}
+        <div class="project-meta">
+          <span class="role role-{{ project_role[p.id]|lower }}">{{ project_role[p.id]|capitalize }}</span>
+          <span class="muted small">{{ p.members|length }} member{% if p.members|length != 1 %}s{% endif %} · {{ p.tasks|length }} task{% if p.tasks|length != 1 %}s{% endif %}</span>
+        </div>
+        <div class="project-card-foot">
+          <span class="muted small">Created {{ p.created_at|datefmt }}</span>
+          <a href="{{ url_for('projects.detail', project_id=p.id) }}" class="link">Open →</a>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <h2>No projects yet</h2>
+    <p class="muted">Create your first project to start tracking work with your team.</p>
+    <button type="button" class="btn btn-primary" data-toggle="newProject">Create project</button>
+  </div>
+{% endif %}
+{% endblock %}

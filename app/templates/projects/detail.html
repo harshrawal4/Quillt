@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · Quill{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('projects.index') }}" class="back-link">← All projects</a>
+
+<div class="page-header">
+  <div>
+    <p class="eyebrow">Project</p>
+    <h1>{{ project.name }}</h1>
+    {% if project.description %}<p class="lede">{{ project.description }}</p>{% endif %}
+    <p class="muted small">
+      <span class="role role-{{ my_role|lower }}">{{ my_role|capitalize }}</span>
+      · created {{ project.created_at|datefmt }} by {{ project.creator.name }}
+    </p>
+  </div>
+  <div class="header-actions">
+    <button type="button" class="btn btn-primary" data-toggle="newTask">New task</button>
+    {% if my_role == "ADMIN" %}
+      <button type="button" class="btn btn-ghost" data-toggle="addMember">Add member</button>
+    {% endif %}
+  </div>
+</div>
+
+{% if my_role == "ADMIN" %}
+<div id="addMember" class="card hidden">
+  <div class="card-header">
+    <h2>Add a member</h2>
+    <button type="button" class="link-button" data-toggle="addMember">Close</button>
+  </div>
+  <form method="post" action="{{ url_for('projects.add_member', project_id=project.id) }}" novalidate>
+    {{ add_member_form.hidden_tag() }}
+    <div class="row">
+      <div class="field flex-grow">
+        <label for="m_email">Email</label>
+        {{ add_member_form.email(id="m_email", placeholder="teammate@example.com", required=True) }}
+        <p class="muted small">They must already have a Quill account.</p>
+      </div>
+      <div class="field">
+        <label for="m_role">Role</label>
+        {{ add_member_form.role(id="m_role") }}
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-ghost" data-toggle="addMember">Cancel</button>
+      <button type="submit" class="btn btn-primary">Add member</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<div id="newTask" class="card hidden">
+  <div class="card-header">
+    <h2>New task</h2>
+    <button type="button" class="link-button" data-toggle="newTask">Close</button>
+  </div>
+  <form method="post" novalidate>
+    {{ task_form.hidden_tag() }}
+    <input type="hidden" name="form_type" value="task">
+
+    <div class="field">
+      <label for="t_title">Title</label>
+      {{ task_form.title(id="t_title", required=True, placeholder="What needs to get done?") }}
+      {% for e in task_form.title.errors %}<p class="error">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="field">
+      <label for="t_desc">Description</label>
+      {{ task_form.description(id="t_desc", rows=3, placeholder="Optional details") }}
+    </div>
+
+    <div class="row">
+      <div class="field flex-grow">
+        <label for="t_assignee">Assign to</label>
+        {{ task_form.assigned_to(id="t_assignee") }}
+      </div>
+      <div class="field">
+        <label for="t_due">Due date</label>
+        {{ task_form.due_date(id="t_due") }}
+      </div>
+      <div class="field">
+        <label for="t_status">Status</label>
+        {{ task_form.status(id="t_status") }}
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-ghost" data-toggle="newTask">Cancel</button>
+      <button type="submit" class="btn btn-primary">Create task</button>
+    </div>
+  </form>
+</div>
+
+<section class="card">
+  <div class="card-header">
+    <h2>Members <span class="muted small">{{ project.members|length }}</span></h2>
+  </div>
+  <ul class="member-list">
+    {% for m in project.members %}
+      <li class="member">
+        <div class="member-info">
+          <span class="avatar avatar-color-{{ m.user.color_seed() }}">{{ m.user.initials }}</span>
+          <div>
+            <div class="member-name">
+              {{ m.user.name }}
+              {% if m.user.id == current_user.id %}<span class="self-tag">you</span>{% endif %}
+            </div>
+            <div class="muted small">{{ m.user.email }}</div>
+          </div>
+        </div>
+        <div class="member-actions">
+          <span class="role role-{{ m.role|lower }}">{{ m.role|capitalize }}</span>
+          {% if my_role == "ADMIN" or m.user.id == current_user.id %}
+            <form method="post" action="{{ url_for('projects.remove_member', project_id=project.id, member_id=m.id) }}" class="inline"
+                  onsubmit="return confirm('{% if m.user.id == current_user.id %}Leave this project?{% else %}Remove {{ m.user.name }} from this project?{% endif %}');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="link-button danger">{% if m.user.id == current_user.id %}Leave{% else %}Remove{% endif %}</button>
+            </form>
+          {% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section>
+  <h2 class="section-heading">Tasks <span class="muted small">{{ (grouped.TODO|length) + (grouped.IN_PROGRESS|length) + (grouped.DONE|length) }}</span></h2>
+
+  {% if not grouped.TODO and not grouped.IN_PROGRESS and not grouped.DONE %}
+    <div class="empty-state">
+      <h3>No tasks yet</h3>
+      <p class="muted">Create the first task to get this project moving.</p>
+      <button type="button" class="btn btn-primary" data-toggle="newTask">New task</button>
+    </div>
+  {% else %}
+    <div class="task-board">
+      {% for col_key, col_label in [("TODO", "To do"), ("IN_PROGRESS", "In progress"), ("DONE", "Done")] %}
+        <div class="task-column">
+          <div class="task-column-header">
+            <span class="task-column-label">{{ col_label }}</span>
+            <span class="task-column-count">{{ grouped[col_key]|length }}</span>
+          </div>
+          <div class="task-column-body">
+            {% for t in grouped[col_key] %}
+              <article class="task">
+                <div class="task-head">
+                  <h4 class="task-title">{{ t.title }}</h4>
+                  {% if my_role == "ADMIN" %}
+                    <form method="post" action="{{ url_for('tasks.delete', task_id=t.id) }}" class="inline"
+                          onsubmit="return confirm('Delete this task?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="link-button danger small">Delete</button>
+                    </form>
+                  {% endif %}
+                </div>
+
+                {% if t.description %}
+                  <p class="task-desc">{{ t.description }}</p>
+                {% endif %}
+
+                <div class="task-meta">
+                  <form method="post" action="{{ url_for('tasks.update_status', task_id=t.id) }}" class="inline status-select">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <select name="status" onchange="this.form.submit()">
+                      <option value="TODO" {% if t.status == 'TODO' %}selected{% endif %}>To do</option>
+                      <option value="IN_PROGRESS" {% if t.status == 'IN_PROGRESS' %}selected{% endif %}>In progress</option>
+                      <option value="DONE" {% if t.status == 'DONE' %}selected{% endif %}>Done</option>
+                    </select>
+                  </form>
+
+                  {% if t.is_overdue %}<span class="status status-overdue">Overdue</span>{% endif %}
+
+                  {% if t.due_date %}
+                    <span class="muted small">{{ t.due_date|relative }}</span>
+                  {% endif %}
+
+                  {% if t.assignee %}
+                    <span class="task-assignee">
+                      <span class="avatar avatar-xs avatar-color-{{ t.assignee.color_seed() }}">{{ t.assignee.initials }}</span>
+                      {{ t.assignee.name }}
+                    </span>
+                  {% endif %}
+                </div>
+              </article>
+            {% else %}
+              <div class="task-empty">nothing here</div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

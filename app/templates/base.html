@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Quill{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  {% block body %}
+  {% if current_user.is_authenticated %}
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a href="{{ url_for('dashboard.index') }}" class="brand">Quill</a>
+      <nav class="nav">
+        <a href="{{ url_for('dashboard.index') }}" class="{% if request.endpoint == 'dashboard.index' %}active{% endif %}">Dashboard</a>
+        <a href="{{ url_for('projects.index') }}" class="{% if request.endpoint and request.endpoint.startswith('projects.') %}active{% endif %}">Projects</a>
+      </nav>
+      <div class="user-menu">
+        <span class="user-name">{{ current_user.name }}</span>
+        <form method="post" action="{{ url_for('auth.logout') }}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="link-button">Sign out</button>
+        </form>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  <main class="container main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <span>Quill</span>
+      <span class="footer-sep">·</span>
+      <span>Team task manager</span>
+    </div>
+  </footer>
+  {% endblock %}
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

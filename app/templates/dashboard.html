@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Quill{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="eyebrow">Workspace</p>
+    <h1>Dashboard</h1>
+  </div>
+
+  <form method="get" class="filter-form">
+    <label for="project_id">Filter</label>
+    <select id="project_id" name="project_id" onchange="this.form.submit()">
+      <option value="">All projects</option>
+      {% for p in projects %}
+        <option value="{{ p.id }}" {% if p.id == selected_project_id %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<section class="stat-grid">
+  <div class="stat">
+    <div class="stat-label">Total tasks</div>
+    <div class="stat-value">{{ stats.total }}</div>
+    <div class="stat-hint">{{ stats.projects }} project{% if stats.projects != 1 %}s{% endif %}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Completed</div>
+    <div class="stat-value">{{ stats.completed }}</div>
+    <div class="stat-hint">{{ stats.completion_pct }}% of all tasks</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Pending</div>
+    <div class="stat-value">{{ stats.pending }}</div>
+    <div class="stat-hint">{{ stats.todo }} to do · {{ stats.in_progress }} in progress</div>
+  </div>
+  <div class="stat stat-alert">
+    <div class="stat-label">Overdue</div>
+    <div class="stat-value">{{ stats.overdue }}</div>
+    <div class="stat-hint">needs attention</div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <h2>Completion</h2>
+    <span class="muted small">{{ stats.completion_pct }}%</span>
+  </div>
+  <div class="progress">
+    <div class="progress-bar" style="width: {{ stats.completion_pct }}%"></div>
+  </div>
+  <p class="muted small spaced">
+    {{ stats.completed }} of {{ stats.total }} tasks complete
+    {% if stats.assigned_to_me %} · {{ stats.assigned_to_me }} assigned to you{% endif %}
+  </p>
+</section>
+
+<div class="two-col">
+  <section class="card">
+    <div class="card-header">
+      <h2>Recent activity</h2>
+      <span class="muted small">last updated</span>
+    </div>
+    {% if recent %}
+      <ul class="list">
+        {% for t in recent %}
+          <li class="list-item">
+            <div class="list-item-main">
+              <a href="{{ url_for('projects.detail', project_id=t.project_id) }}" class="list-item-title">{{ t.title }}</a>
+              <span class="status status-{{ t.status|lower }}">{{ t.status_label }}</span>
+              {% if t.is_overdue %}<span class="status status-overdue">Overdue</span>{% endif %}
+            </div>
+            <div class="list-item-meta">
+              <span class="mono">{{ t.project.name }}</span>
+              {% if t.due_date %}<span>· due {{ t.due_date|relative }}</span>{% endif %}
+              {% if t.assignee %}<span>· {{ t.assignee.name }}</span>{% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">No tasks yet. Create a project and add some.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h2>Your projects</h2>
+    </div>
+    {% if projects %}
+      <ul class="list">
+        {% for p in projects[:6] %}
+          <li class="list-item">
+            <a href="{{ url_for('projects.detail', project_id=p.id) }}" class="list-item-title">{{ p.name }}</a>
+            <div class="list-item-meta">
+              {{ p.tasks|length }} task{% if p.tasks|length != 1 %}s{% endif %}
+              · {{ p.members|length }} member{% if p.members|length != 1 %}s{% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      <a href="{{ url_for('projects.index') }}" class="link spaced">View all projects →</a>
+    {% else %}
+      <p class="empty">No projects yet.</p>
+      <a href="{{ url_for('projects.index') }}" class="btn btn-primary">Create one</a>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
